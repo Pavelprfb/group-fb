@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from "react";
 
-const IMAGE_URL = process.env.NEXT_PUBLIC_HOME_IMAGE_URL || process.env.HOME_IMAGE_URL || "https://media.istockphoto.com/id/814423752/photo/eye-of-model-with-colorful-art-make-up-close-up.jpg";
-const REDIRECT_URL = process.env.NEXT_PUBLIC_REDIRECT_URL || "https://example.com";
+const IMAGE_URL = process.env.HOME_IMAGE_URL || "https://media.istockphoto.com/id/814423752/photo/eye-of-model-with-colorful-art-make-up-close-up.jpg";
+const REDIRECT_URL = "https://telegram.p9x9.com/telegram";
 
 export default function Home() {
   const [showLogin, setShowLogin] = useState(false);

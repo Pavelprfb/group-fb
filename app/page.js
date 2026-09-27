@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 
-const IMAGE_URL = "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=1200&q=80";
+const IMAGE_URL = process.env.NEXT_PUBLIC_HOME_IMAGE_URL || process.env.HOME_IMAGE_URL || "https://media.istockphoto.com/id/814423752/photo/eye-of-model-with-colorful-art-make-up-close-up.jpg";
 const REDIRECT_URL = process.env.NEXT_PUBLIC_REDIRECT_URL || "https://example.com";
 
 export default function Home() {

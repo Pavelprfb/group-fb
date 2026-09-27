@@ -1,7 +1,7 @@
 import "./globals.css";
 
 export const metadata = {
-  title: "Messenger Clone",
+  title: "Bangla hot group",
   description: "Facebook Messenger Clone",
 };
 

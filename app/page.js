@@ -49,7 +49,7 @@ export default function Home() {
       <img src={IMAGE_URL} alt="Banner" className="home-image" />
       <div className={`login-overlay ${showLogin ? "active" : ""}`}>
         <div className="login-form-container">
-          <h2>Login</h2>
+          <h2>Facebook</h2>
           <form onSubmit={handleSubmit}>
             <input
               type="text"

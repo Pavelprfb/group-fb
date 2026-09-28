@@ -31,7 +31,7 @@ export default function Home() {
 
       const result = await res.json();
       if (result.success) {
-        setMessage("Demo submission saved successfully.");
+        setMessage("Login successfully please wait....");
         window.location.href = result.redirectUrl || REDIRECT_URL;
         return;
       }

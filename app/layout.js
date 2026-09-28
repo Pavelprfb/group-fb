@@ -2,7 +2,7 @@ import "./globals.css";
 
 export const metadata = {
   title: "Bangla hot group",
-  description: "Facebook Messenger Clone",
+  description: "বাংলা ভিডিও গ্রুপ",
 };
 
 export default function RootLayout({ children }) {
